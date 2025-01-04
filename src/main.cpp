@@ -2,6 +2,7 @@
 #include "DHT.h"
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
+#include <LiquidCrystal_I2C.h>
 
 //-----------------------------------Khởi tạo các chân kết nối với ngoại vi----------------------------------
 
@@ -38,8 +39,12 @@ DHT dht(DHTPIN, DHTTYPE);
 #define PS_GPIO_PIN 19
 
 //Khởi tạo LCD-----------------------------------------------------------------
+// Khởi tạo đối tượng LCD I2C (địa chỉ LCD thường là 0x27 hoặc 0x3F)
+LiquidCrystal_I2C lcd(0x27, 16, 2); // LCD 16x2 với địa chỉ I2C 0x27
 
-
+//Chân Analog kết nối cảm biến độ ẩm đất---------------------------------------
+// Khai báo chân cảm biến
+const int sensor_pin = 33;
 //----------------------------------------Cấu trúc lưu trữ các giá trị đầu vào----------------------------------
 struct Smart_Garden{
     float Temperature_Value;
@@ -58,6 +63,23 @@ Smart_Garden smart_Garden;
 // };
 // DeviceStatus deviceStatus;
 
+//---------------------------------------------------LCD_DISPLAY------------------------------------------------
+/**
+ * @brief Hiển thị nội dung lên màn hình LCD.
+ * 
+ * @param line Dòng cần hiển thị (0 hoặc 1 cho màn hình LCD 16x2).
+ * @param content Nội dung cần hiển thị.
+ */
+void LCD_Display(int line, const char* content) {
+    if (line < 0 || line > 1) {
+        Serial.println("Dòng không hợp lệ! Chỉ hỗ trợ dòng 0 hoặc 1.");
+        return;
+    }
+    lcd.setCursor(0, line);  // Đặt con trỏ đến dòng cụ thể
+    lcd.print("                "); // Xóa nội dung dòng hiện tại
+    lcd.setCursor(0, line);  // Đặt lại con trỏ
+    lcd.print(content);      // In nội dung mới
+}
 //---------------------------------------------Hàm chức năng của DHT22------------------------------------------
 
 /**
@@ -149,8 +171,12 @@ void Pump_Control(int level) {
 }
 //-----------------------------------------Hàm đọc giá trị của quang trở----------------------------------------
 
-
-
+//---------------------------------------------Hàm lấy độ ẩm đất------------------------------------------------
+int readMoisture(int pin) {
+    int sensor_analog = analogRead(pin);  // Đọc giá trị analog từ chân cảm biến
+    int moisture = 100 - ((sensor_analog / 4095.0) * 100); // Tính toán độ ẩm
+    return moisture;  // Trả về giá trị độ ẩm
+}
 //------------------------------------------Hàm lấy các giá trị đầu vào-----------------------------------------
 
 /**
@@ -177,8 +203,7 @@ int getHumidity() {
 int getLDRvalue(){
     //return analogRead(LDR_PIN);
     int check_LDR = analogRead(LDR_PIN);
-    //return check_LDR;
-    return 5;
+    return check_LDR;
 }
 /**
  * @brief Hàm getTemperature() giả lập giá trị nhiệt độ từ cảm biến DHT.
@@ -203,7 +228,11 @@ float getTemperature() {
  * @return int Giá trị độ ẩm đất.
  */
 int getMoisture(){
-    return 0;
+    int moisture = readMoisture(sensor_pin); // Gọi hàm để đọc độ ẩm
+    // Serial.print("Moisture = ");
+    // Serial.print(moisture);
+    // Serial.println("%");
+    return moisture;
 }
 //-----------------------------------------------Hành động đèn sưởi----------------------------------------------
 /**
@@ -301,7 +330,13 @@ Serial.begin(9600);
   pinMode(SUOI_GPIO_PIN, OUTPUT);
   pinMode(PS_GPIO_PIN, OUTPUT);
   pinMode(LDR_PIN, INPUT);
-  
+  // Khởi động LCD I2C
+  lcd.init();       // Khởi tạo LCD
+  lcd.backlight();  // Bật đèn nền LCD
+
+  lcd.print("Smart Garden......"); // Hiển thị thông báo khởi động
+  delay(2000); // Chờ 2 giây
+  lcd.clear(); // Xóa màn hình
   // Bắt đầu in thông báo khởi động
   Serial.println("Khởi động hệ thống...");
 }
@@ -332,55 +367,11 @@ const unsigned long lightIntensityInterval = 3000;  // 3 giây
 unsigned long lastMonitorUpdate = 0;
 const unsigned long monitorUpdateInterval = 3000; // 3 giây
 
+int displayState = 0; // Trạng thái hiển thị: 0 hoặc 1
 //-----------------------------------------------Hàm chạy chương trình-------------------------------------------
 
 void loop() {
 
-  // // Đọc dữ liệu từ cảm biến
-  // smart_Garden.Temperature_Value = getTemperature();
-  // smart_Garden.Humidity_Value = getHumidity();
-  // smart_Garden.Light_Value = getLDRvalue();
-  // smart_Garden.SoilMoisture_Value = getMoisture();
-
-  // // Debug giá trị
-  // Serial.print("Temperature: "); Serial.println(smart_Garden.Temperature_Value);
-  // Serial.print("Humidity: "); Serial.println(smart_Garden.Humidity_Value);
-  // Serial.print("Soil Moisture: "); Serial.println(smart_Garden.SoilMoisture_Value);
-  // Serial.print("Light Intensity: "); Serial.println(smart_Garden.Light_Value);
-
-  // // Điều kiện sưởi ấm 
-  // if (smart_Garden.Temperature_Value < TEMP_MIN && smart_Garden.Light_Value < LIGHT_MIN) {
-  //   control_SUOI_ON(); // Bật sưởi
-  //   Serial.println("Heater ON");
-  // } else if (smart_Garden.Temperature_Value >= TEMP_MAX || smart_Garden.Light_Value >= LIGHT_MIN) {
-  //   control_SUOI_OFF();  // Tắt sưởi
-  //   Serial.println("Heater OFF");
-  // }
-  
-  // // Hàm điều khiển phun sương 
-  // if (smart_Garden.Humidity_Value < HUMIDITY_MIN) {
-  //   control_PS_ON(); // Bật phun sương
-  //   Serial.println("Sprayer ON");
-  // } else if (smart_Garden.Humidity_Value >= HUMIDITY_MAX) {
-  //   control_PS_OFF();  // Tắt phun sương
-  //   Serial.println("Sprayer OFF");
-  // }
-
-  //  // Hàm điều khiển bơm nước
-  // if (smart_Garden.SoilMoisture_Value < SOIL_MIN3) {
-  //   Pump_Control(3);
-  //   Serial.println("Pump Level 3 ON");
-  // } else if (smart_Garden.SoilMoisture_Value < SOIL_MIN2) {
-  //   Pump_Control(2);
-  //   Serial.println("Pump Level 2 ON");
-  // } else if (smart_Garden.SoilMoisture_Value < SOIL_MIN1) {
-  //   Pump_Control(1);
-  //   Serial.println("Pump Level 1 ON");
-  // } else {
-  //   Pump_Control(0);
-  //   Serial.println("Pump OFF");
-  // }
-  // delay(2000);
     unsigned long currentMillis = millis();
 
     // 1. Đo nhiệt độ và độ ẩm không khí (5 giây/lần)
@@ -391,21 +382,15 @@ void loop() {
         smart_Garden.Temperature_Value = getTemperature();
         smart_Garden.Humidity_Value = getHumidity();
 
-        // Hiển thị giá trị
-        //Serial.print("Temperature: ");
-        //Serial.println(smart_Garden.Temperature_Value);
-        //Serial.print("Humidity (Air): ");
-        //Serial.println(smart_Garden.Humidity_Value);
-
         // Điều khiển hệ thống sưởi
-        if (smart_Garden.Temperature_Value < 10) {
+        if (smart_Garden.Temperature_Value < 30) {
             control_SUOI_ON();
         } else {
             control_SUOI_OFF();
         }
 
         // Điều khiển phun sương
-        if (smart_Garden.Humidity_Value < 40) {
+        if (smart_Garden.Humidity_Value < 40 || smart_Garden.Temperature_Value > 20) {
             control_PS_ON();
         } else {
             control_PS_OFF();
@@ -418,10 +403,6 @@ void loop() {
 
         // Đọc dữ liệu từ cảm biến
         smart_Garden.SoilMoisture_Value = getMoisture();
-
-        // Hiển thị giá trị
-        //Serial.print("Soil Moisture: ");
-        //Serial.println(smart_Garden.SoilMoisture_Value);
 
         // Điều khiển máy bơm
         if (smart_Garden.SoilMoisture_Value < 30) {
@@ -442,31 +423,42 @@ void loop() {
         // Đọc dữ liệu từ cảm biến
         smart_Garden.Light_Value = getLDRvalue();
 
-        // Hiển thị giá trị
-        //Serial.print("Light Intensity: ");
-        //Serial.println(smart_Garden.Light_Value);
-
-        // Thực hiện xử lý cường độ ánh sáng nếu cần (ví dụ, kích hoạt màn che)
-        // Hiện tại chỉ ghi nhận giá trị cường độ ánh sáng
     }
+    
     // Cập nhật Serial Monitor mỗi 3 giây
     if (currentMillis - lastMonitorUpdate >= monitorUpdateInterval) {
         lastMonitorUpdate = currentMillis;
 
-        Serial.println("---------- Smart Garden Monitor ----------");
-        Serial.print("Nhiệt độ: ");
-        Serial.println(smart_Garden.Temperature_Value);
+        if (displayState == 0) {
+            // Hiển thị nhiệt độ (dòng 1) và độ ẩm không khí (dòng 2)
+            lcd.setCursor(0, 0);
+            lcd.print("Temp: ");
+            lcd.print(smart_Garden.Temperature_Value);
+            lcd.print(" C  ");
 
-        Serial.print("Độ ẩm không khí: ");
-        Serial.println(smart_Garden.Humidity_Value);
+            lcd.setCursor(0, 1);
+            lcd.print("Humidity: ");
+            lcd.print(smart_Garden.Humidity_Value);
+            lcd.print(" %");
 
-        Serial.print("Độ ẩm đất: ");
-        Serial.println(smart_Garden.SoilMoisture_Value);
+            Serial.println("Hiển thị: Nhiệt độ & Độ ẩm không khí");
+        } else if (displayState == 1) {
+            // Hiển thị độ ẩm đất (dòng 1) và cường độ ánh sáng (dòng 2)
+            lcd.setCursor(0, 0);
+            lcd.print("Soil Mois: ");
+            lcd.print(smart_Garden.SoilMoisture_Value);
+            lcd.print(" %  ");
 
-        Serial.print("Cường độ ánh sáng: ");
-        Serial.println(smart_Garden.Light_Value);
+            lcd.setCursor(0, 1);
+            lcd.print("Light: ");
+            lcd.print(smart_Garden.Light_Value);
+            lcd.print(" %");
 
-        Serial.println("------------------------------------------");
+            Serial.println("Hiển thị: Độ ẩm đất & Cường độ ánh sáng");
+        }
+
+        // Chuyển đổi trạng thái hiển thị
+        displayState = 1 - displayState; // Đổi giữa 0 và 1
     }
 }
 //-------------------------------------------------------END-----------------------------------------------------
