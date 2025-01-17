@@ -10,7 +10,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2); // LCD 16x2 với địa chỉ I2C 0x27
  * @param line Dòng cần hiển thị (0 hoặc 1 cho màn hình LCD 16x2).
  * @param content Nội dung cần hiển thị.
  */
-void displayOnLCD(int line, const char* content) {
+void displayOnLCD(int8_t line, const char* content) {
     if (line < 0 || line > 1) {
         Serial.println("Dòng không hợp lệ! Chỉ hỗ trợ dòng 0 hoặc 1.");
         return;

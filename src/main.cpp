@@ -4,6 +4,7 @@
 #include <Adafruit_Sensor.h>
 #include <LiquidCrystal_I2C.h>
 
+
 //-----------------------------------Khởi tạo các chân kết nối với ngoại vi----------------------------------
 
 /**
@@ -53,15 +54,6 @@ struct Smart_Garden{
     int SoilMoisture_Value;
 };
 Smart_Garden smart_Garden;
-
-// //-------------------------------Cấu trúc thể hiện các giá trị đầu ra của hệ thống---------------------------
-
-// struct DeviceStatus {
-//     int pumpLevel;        // Mức hoạt động của bơm (0-5)
-//     bool misting;         // Trạng thái phun sương
-//     bool heating;         // Trạng thái sưởi
-// };
-// DeviceStatus deviceStatus;
 
 //---------------------------------------------------LCD_DISPLAY------------------------------------------------
 /**
@@ -120,8 +112,8 @@ void DHTdata_Read() {
     // Serial.print(F("%  Temperature: "));
     // Serial.print(t);
     // Serial.print(F("°C"));
-    smart_Garden.Temperature_Value = t;
-    smart_Garden.Humidity_Value = h;
+    smart_Garden.Temperature_Value = 0.2075 + 1.0201 * t - 0.0004 * t * t; //Công thữc hiệu chuẩn của nhiệt độ
+    smart_Garden.Humidity_Value = 0.4189 + 1.0047 * h - 0.000129 * h * h;  //Công thức hiệu chuẩn của độ ẩm
 }
 
 //--------------------------------------------Hàm chức năng của máy bơm-----------------------------------------
@@ -157,8 +149,8 @@ void Pump_Control(int level) {
     // Giới hạn giá trị đầu vào trong khoảng 0 - 5
     level = constrain(level, 0, 3);
 
-    // Chuyển đổi mức từ 0-5 sang giá trị duty cycle 0-255
-    int dutyCycle = map(level, 0, 3, 0, 255);
+    // Chuyển đổi mức từ 0-3 sang giá trị duty cycle 0-255
+    int dutyCycle = map(level, 0, 3, 0, 150);
 
     // Gửi giá trị duty cycle đến PWM
     ledcWrite(PWM_CHANNEL, dutyCycle);
@@ -175,7 +167,8 @@ void Pump_Control(int level) {
 int readMoisture(int pin) {
     int sensor_analog = analogRead(pin);  // Đọc giá trị analog từ chân cảm biến
     int moisture = 100 - ((sensor_analog / 4095.0) * 100); // Tính toán độ ẩm
-    return moisture;  // Trả về giá trị độ ẩm
+    smart_Garden.SoilMoisture_Value = moisture / 40 * 100;
+    return smart_Garden.SoilMoisture_Value ;  // Trả về giá trị độ ẩm
 }
 //------------------------------------------Hàm lấy các giá trị đầu vào-----------------------------------------
 
@@ -189,8 +182,7 @@ int readMoisture(int pin) {
  */
 int getHumidity() {
     DHTdata_Read();
-    //return smart_Garden.Humidity_Value;  // Giả định độ ẩm là 45%
-    return 20;
+    return smart_Garden.Humidity_Value;  // Giả định độ ẩm là 45%
 }
 /**
  * @brief Hàm getLDRvalue() giả lập giá trị cảm biến ánh sáng LDR.
@@ -203,6 +195,7 @@ int getHumidity() {
 int getLDRvalue(){
     //return analogRead(LDR_PIN);
     int check_LDR = analogRead(LDR_PIN);
+    smart_Garden.Light_Value = check_LDR;
     return check_LDR;
 }
 /**
@@ -214,11 +207,8 @@ int getLDRvalue(){
  * @return float Giá trị nhiệt độ (đơn vị: °C).
  */
 float getTemperature() {
-    // Giá trị giả định (có thể thay đổi khi cần)
-    //return dht.readTemperature();
     DHTdata_Read();
-    //return smart_Garden.Temperature_Value;  // Giả định nhiệt độ là 8.5°C
-    return 5;
+    return smart_Garden.Temperature_Value;  // Giả định nhiệt độ là 8.5°C
 }
 /**
  * @brief Hàm getMoisture() giả lập giá trị độ ẩm đất.
@@ -325,7 +315,20 @@ Serial.begin(9600);
   
   // Khởi tạo máy bơm
   Pump_Init();
-  
+//   //-------------------------------Kích hoạt chế độ tiết kiệm năng lượng Light Sleep---------------------------
+
+
+// // Cấu hình GPIO
+// gpio_set_direction(GPIO_NUM_32, GPIO_MODE_INPUT);  // Cảm biến 1
+// gpio_set_direction(GPIO_NUM_25, GPIO_MODE_INPUT);  // Cảm biến 2
+// gpio_set_direction(GPIO_NUM_34, GPIO_MODE_INPUT);  // Cảm biến 3
+
+// gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);   // Đầu ra 1
+// gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT);  // Đầu ra 2
+// gpio_set_direction(GPIO_NUM_19, GPIO_MODE_OUTPUT);  // Đầu ra 3
+
+// // Kích hoạt Light Sleep
+// esp_light_sleep_start();
   // Khởi tạo các chân điều khiển thiết bị
   pinMode(SUOI_GPIO_PIN, OUTPUT);
   pinMode(PS_GPIO_PIN, OUTPUT);
@@ -335,21 +338,20 @@ Serial.begin(9600);
   lcd.backlight();  // Bật đèn nền LCD
 
   lcd.print("Smart Garden......"); // Hiển thị thông báo khởi động
-  delay(2000); // Chờ 2 giây
   lcd.clear(); // Xóa màn hình
   // Bắt đầu in thông báo khởi động
   Serial.println("Khởi động hệ thống...");
 }
 //----------------------------------------------Các ngưỡng điều kiện--------------------------------------------
 
-const float TEMP_MIN = 20.0;     // Ngưỡng bật sưởi ấm (độ C)
-const float TEMP_MAX = 30.0;     // Ngưỡng tắt sưởi ấm
+const float TEMP_MIN = 10.0;     // Ngưỡng bật sưởi ấm (độ C)
+const float TEMP_MAX = 20.0;     // Ngưỡng tắt sưởi ấm
 const float HUMIDITY_MIN = 40.0; // Ngưỡng bật phun sương
-const float HUMIDITY_MAX = 70.0; // Ngưỡng tắt phun sương
+const float HUMIDITY_MAX = 60.0; // Ngưỡng tắt phun sương
 const float SOIL_MIN1 = 60.0;    // Ngưỡng tưới mức 1
-const float SOIL_MIN2 = 40.0;    // Ngưỡng tưới mức 2
-const float SOIL_MIN3 = 20.0;    // Ngưỡng tưới mức 3
-const int LIGHT_MIN = 20;        // Ngưỡng ánh sáng bật sưởi ấm
+const float SOIL_MIN2 = 30.0;    // Ngưỡng tưới mức 2
+const float SOIL_MIN3 = 15.0;    // Ngưỡng tưới mức 3
+//const int LIGHT_MIN = 20;        // Ngưỡng ánh sáng bật sưởi ấm
 
 //---------------------------------------------------Thời gian--------------------------------------------------
 
@@ -359,9 +361,9 @@ unsigned long lastSoilMoistureCheck = 0; // Thời gian lần cuối đo độ �
 unsigned long lastLightIntensityCheck = 0; // Thời gian lần cuối đo cường độ ánh sáng
 
 // Khoảng thời gian đo cho từng cảm biến (ms)
-const unsigned long tempHumInterval = 5000;  // 5 giây
-const unsigned long soilMoistureInterval = 7000;  // 7 giây
-const unsigned long lightIntensityInterval = 3000;  // 3 giây
+const unsigned long tempHumInterval = 15000 * 60;         // Đo nhiệt độ, đô ẩm  
+const unsigned long soilMoistureInterval = 20000 * 60;    // Đo độ ẩm đất   
+const unsigned long lightIntensityInterval = 20000 * 60;  // Đo cường độ ánh sáng
 
 // Biến thời gian cho việc cập nhật Serial Monitor
 unsigned long lastMonitorUpdate = 0;
@@ -383,14 +385,14 @@ void loop() {
         smart_Garden.Humidity_Value = getHumidity();
 
         // Điều khiển hệ thống sưởi
-        if (smart_Garden.Temperature_Value < 30) {
+        if (smart_Garden.Temperature_Value < 25) {
             control_SUOI_ON();
-        } else {
+        } else  {
             control_SUOI_OFF();
         }
 
         // Điều khiển phun sương
-        if (smart_Garden.Humidity_Value < 40 || smart_Garden.Temperature_Value > 20) {
+        if (smart_Garden.Humidity_Value < 60 || smart_Garden.Temperature_Value > 30) {
             control_PS_ON();
         } else {
             control_PS_OFF();
@@ -409,7 +411,7 @@ void loop() {
             Pump_Control(3);  // Mức cao
         } else if (smart_Garden.SoilMoisture_Value < 50) {
             Pump_Control(2);  // Mức trung bình
-        } else if (smart_Garden.SoilMoisture_Value < 70) {
+        } else if (smart_Garden.SoilMoisture_Value < 80) {
             Pump_Control(1);  // Mức thấp
         } else {
             Pump_Control(0);  // Tắt bơm
@@ -445,14 +447,14 @@ void loop() {
         } else if (displayState == 1) {
             // Hiển thị độ ẩm đất (dòng 1) và cường độ ánh sáng (dòng 2)
             lcd.setCursor(0, 0);
-            lcd.print("Soil Mois: ");
+            lcd.print("Mois: ");
             lcd.print(smart_Garden.SoilMoisture_Value);
-            lcd.print(" %  ");
+            lcd.print(" %                ");
 
             lcd.setCursor(0, 1);
             lcd.print("Light: ");
             lcd.print(smart_Garden.Light_Value);
-            lcd.print(" %");
+            lcd.print("                          ");
 
             Serial.println("Hiển thị: Độ ẩm đất & Cường độ ánh sáng");
         }

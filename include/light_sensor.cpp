@@ -30,7 +30,7 @@ void setup() {
  */
 void loop() {
     // Đọc tín hiệu từ quang trở thông qua chân analog
-    int ldrValue = analogRead(LDR_PIN);
+    int8_t ldrValue = analogRead(LDR_PIN);
 
     // Hiển thị giá trị đọc được ra Serial Monitor
     Serial.print("LDR Value: ");   // In chuỗi "LDR Value: "

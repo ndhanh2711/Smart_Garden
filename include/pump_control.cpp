@@ -35,12 +35,12 @@ void Pump_Init() {
  * 
  * @param level Mức bơm, giá trị từ 0 (tắt bơm) đến 5 (bơm mạnh nhất).
  */
-void Pump_Control(int level) {
+void Pump_Control(int8_t level) {
     // Giới hạn giá trị đầu vào từ 0 đến 5
     level = constrain(level, 0, 3);
 
     // Chuyển đổi mức bơm (0-5) sang duty cycle (0-255)
-    int dutyCycle = map(level, 0, 3, 0, 255);
+    int8_t dutyCycle = map(level, 0, 3, 0, 255);
 
     // Gửi giá trị duty cycle đến kênh PWM
     ledcWrite(PWM_CHANNEL, dutyCycle);

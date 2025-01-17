@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-int moisture, sensor_analog;
-const int sensor_pin = 34;
+int8_t moisture, sensor_analog;
+const int8_t sensor_pin = 34;
  void setup(){
   Serial.begin(9600);
 
