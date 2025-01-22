@@ -344,9 +344,9 @@ Serial.begin(9600);
 }
 //----------------------------------------------Các ngưỡng điều kiện--------------------------------------------
 
-const float TEMP_MIN = 10.0;     // Ngưỡng bật sưởi ấm (độ C)
-const float TEMP_MAX = 20.0;     // Ngưỡng tắt sưởi ấm
-const float HUMIDITY_MIN = 40.0; // Ngưỡng bật phun sương
+const float TEMP_MIN = 25.0;     // Ngưỡng bật sưởi ấm (độ C)
+const float TEMP_MAX = 28.0;     // Ngưỡng tắt sưởi ấm
+const float HUMIDITY_MIN = 50.0; // Ngưỡng bật phun sương
 const float HUMIDITY_MAX = 60.0; // Ngưỡng tắt phun sương
 const float SOIL_MIN1 = 60.0;    // Ngưỡng tưới mức 1
 const float SOIL_MIN2 = 30.0;    // Ngưỡng tưới mức 2
@@ -361,9 +361,9 @@ unsigned long lastSoilMoistureCheck = 0; // Thời gian lần cuối đo độ �
 unsigned long lastLightIntensityCheck = 0; // Thời gian lần cuối đo cường độ ánh sáng
 
 // Khoảng thời gian đo cho từng cảm biến (ms)
-const unsigned long tempHumInterval = 15000 * 60;         // Đo nhiệt độ, đô ẩm  
-const unsigned long soilMoistureInterval = 20000 * 60;    // Đo độ ẩm đất   
-const unsigned long lightIntensityInterval = 20000 * 60;  // Đo cường độ ánh sáng
+const unsigned long tempHumInterval = 2000;         // Đo nhiệt độ, đô ẩm  
+const unsigned long soilMoistureInterval = 2000;    // Đo độ ẩm đất   
+const unsigned long lightIntensityInterval = 1000;  // Đo cường độ ánh sáng
 
 // Biến thời gian cho việc cập nhật Serial Monitor
 unsigned long lastMonitorUpdate = 0;
@@ -385,17 +385,23 @@ void loop() {
         smart_Garden.Humidity_Value = getHumidity();
 
         // Điều khiển hệ thống sưởi
-        if (smart_Garden.Temperature_Value < 25) {
+        if (smart_Garden.Temperature_Value < TEMP_MIN) {
             control_SUOI_ON();
-        } else  {
+        } else if(smart_Garden.Temperature_Value >= TEMP_MAX) {
             control_SUOI_OFF();
+        }
+        else{
+            control_SUOI_ON();
         }
 
         // Điều khiển phun sương
-        if (smart_Garden.Humidity_Value < 60 || smart_Garden.Temperature_Value > 30) {
+        if (smart_Garden.Humidity_Value <= HUMIDITY_MIN) {
             control_PS_ON();
-        } else {
+        } else if(smart_Garden.Humidity_Value >= HUMIDITY_MAX){
             control_PS_OFF();
+        }
+        else{
+            control_PS_ON();
         }
     }
 
